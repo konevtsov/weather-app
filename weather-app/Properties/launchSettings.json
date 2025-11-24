@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "weather-app": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "WAPI_KEY": "8aa7b904b9ac484fae033101252411"
+      }
+    }
+  }
+}
