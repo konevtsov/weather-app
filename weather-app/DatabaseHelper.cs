@@ -53,17 +53,11 @@ namespace weather_app
             using var connection = new SQLiteConnection(_connectionString);
             connection.Open();
 
-            // Clear previous entries and insert new one
-            string deleteQuery = "DELETE FROM Settings";
-            using (var deleteCommand = new SQLiteCommand(deleteQuery, connection))
-            {
-                deleteCommand.ExecuteNonQuery();
-            }
-
-            string insertQuery = "INSERT INTO Settings (DefaultCity) VALUES (@city)";
-            using var insertCommand = new SQLiteCommand(insertQuery, connection);
-            insertCommand.Parameters.AddWithValue("@city", city);
-            insertCommand.ExecuteNonQuery();
+            // Use INSERT OR REPLACE with a fixed ID for atomicity
+            string upsertQuery = "INSERT OR REPLACE INTO Settings (Id, DefaultCity) VALUES (1, @city)";
+            using var command = new SQLiteCommand(upsertQuery, connection);
+            command.Parameters.AddWithValue("@city", city);
+            command.ExecuteNonQuery();
         }
     }
 }

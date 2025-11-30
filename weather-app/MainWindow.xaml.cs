@@ -214,7 +214,7 @@ namespace weather_app
             // Temperature
             var tempText = new TextBlock
             {
-                Text = $"🌡️ {forecastDay.Day?.MinTempC:0}° / {forecastDay.Day?.MaxTempC:0}°C",
+                Text = $"🌡️ {forecastDay.Day?.MinTempC:0}°C / {forecastDay.Day?.MaxTempC:0}°C",
                 FontSize = 14,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#212529")),
