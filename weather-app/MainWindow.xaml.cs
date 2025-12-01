@@ -1,13 +1,16 @@
 ﻿using System.Net.Http;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace weather_app
 {
     public partial class MainWindow : Window
     {
-        private string ApiKey;
-
+        private string? ApiKey;
+        private DatabaseHelper? _dbHelper;
+        private string _currentCity = "Новосибирск";
 
         public MainWindow()
         {
@@ -21,8 +24,22 @@ namespace weather_app
                 return;
             }
 
+            try
+            {
+                _dbHelper = new DatabaseHelper();
+                string? savedCity = _dbHelper.GetDefaultCity();
+                if (!string.IsNullOrEmpty(savedCity))
+                {
+                    _currentCity = savedCity;
+                    CityTextBox.Text = savedCity;
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusTextBlock.Text = $"Ошибка БД: {ex.Message}";
+            }
 
-            LoadWeather("Новосибирск");
+            LoadWeather(_currentCity);
         }
 
         private async void LoadWeather(string city)
@@ -31,30 +48,56 @@ namespace weather_app
             {
                 StatusTextBlock.Text = "Загрузка...";
                 SearchButton.IsEnabled = false;
+                SaveCityButton.IsEnabled = false;
 
                 using (var client = new HttpClient())
                 {
-                    string url = $"http://api.weatherapi.com/v1/current.json?key={ApiKey}&q={city}&lang=ru";
+                    string url = $"http://api.weatherapi.com/v1/forecast.json?key={ApiKey}&q={city}&days=3&lang=ru";
 
                     HttpResponseMessage response = await client.GetAsync(url);
                     response.EnsureSuccessStatusCode();
 
                     string json = await response.Content.ReadAsStringAsync();
-                    WeatherData data = JsonSerializer.Deserialize<WeatherData>(json);
+                    WeatherData? data = JsonSerializer.Deserialize<WeatherData>(json);
 
-                    CityTextBlock.Text = data.Location.Name;
-                    CountryTextBlock.Text = data.Location.Country;
-                    TimeTextBlock.Text = data.Location.LocalTime;
+                    if (data == null || data.Location == null || data.Current == null)
+                    {
+                        StatusTextBlock.Text = "Ошибка: данные не получены";
+                        return;
+                    }
+
+                    _currentCity = data.Location.Name ?? city;
+
+                    // Location info
+                    CityTextBlock.Text = data.Location.Name ?? "";
+                    CountryTextBlock.Text = data.Location.Country ?? "";
+                    TimeTextBlock.Text = data.Location.LocalTime ?? "";
+
+                    // Current weather
                     TempTextBlock.Text = $"{data.Current.TempC:0}°C";
                     FeelsLikeTextBlock.Text = $"Ощущается как: {data.Current.FeelsLikeC:0}°C";
-                    DescTextBlock.Text = data.Current.Condition.Text;
+                    DescTextBlock.Text = data.Current.Condition?.Text ?? "";
+
+                    // Basic parameters
                     HumidityTextBlock.Text = $"{data.Current.Humidity}%";
                     PressureTextBlock.Text = $"{data.Current.PressureMb} hPa";
-                    WindTextBlock.Text = $"{data.Current.WindKph} км/ч";
                     VisibilityTextBlock.Text = $"{data.Current.VisibilityKm} км";
+                    CloudTextBlock.Text = $"{data.Current.Cloud}%";
+
+                    // Wind parameters
+                    WindTextBlock.Text = $"{data.Current.WindKph} км/ч";
+                    WindDirTextBlock.Text = $"{data.Current.WindDir ?? ""} {data.Current.WindDegree}°";
+                    GustTextBlock.Text = $"{data.Current.GustKph} км/ч";
+                    WindchillTextBlock.Text = $"{data.Current.WindchillC:0}°C";
+
+                    // Additional parameters
+                    PrecipTextBlock.Text = $"{data.Current.PrecipMm} мм";
+                    DewpointTextBlock.Text = $"{data.Current.DewpointC:0}°C";
+                    HeatindexTextBlock.Text = $"{data.Current.HeatindexC:0}°C";
                     UVTextBlock.Text = data.Current.UV.ToString();
 
-                    if (!string.IsNullOrEmpty(data.Current.Condition.Icon))
+                    // Weather icon
+                    if (!string.IsNullOrEmpty(data.Current.Condition?.Icon))
                     {
                         string iconUrl = data.Current.Condition.Icon;
                         if (iconUrl.StartsWith("//"))
@@ -63,6 +106,24 @@ namespace weather_app
                         }
                         WeatherIcon.Source = new System.Windows.Media.Imaging.BitmapImage(
                             new Uri(iconUrl));
+                    }
+
+                    // Astronomy data (from today's forecast)
+                    if (data.Forecast?.ForecastDays != null && data.Forecast.ForecastDays.Count > 0)
+                    {
+                        var todayAstro = data.Forecast.ForecastDays[0].Astro;
+                        if (todayAstro != null)
+                        {
+                            SunriseTextBlock.Text = todayAstro.Sunrise ?? "--:--";
+                            SunsetTextBlock.Text = todayAstro.Sunset ?? "--:--";
+                            MoonriseTextBlock.Text = todayAstro.Moonrise ?? "--:--";
+                            MoonsetTextBlock.Text = todayAstro.Moonset ?? "--:--";
+                            MoonPhaseTextBlock.Text = todayAstro.MoonPhase ?? "--";
+                            MoonIllumTextBlock.Text = $"{todayAstro.MoonIllumination}%";
+                        }
+
+                        // 3-day forecast
+                        UpdateForecastPanel(data.Forecast.ForecastDays);
                     }
 
                     StatusTextBlock.Text = $"Обновлено: {DateTime.Now:HH:mm}";
@@ -76,7 +137,195 @@ namespace weather_app
             finally
             {
                 SearchButton.IsEnabled = true;
+                SaveCityButton.IsEnabled = true;
             }
+        }
+
+        private void UpdateForecastPanel(List<ForecastDay> forecastDays)
+        {
+            ForecastPanel.Children.Clear();
+
+            foreach (var day in forecastDays)
+            {
+                var card = CreateForecastCard(day);
+                ForecastPanel.Children.Add(card);
+            }
+        }
+
+        private Border CreateForecastCard(ForecastDay forecastDay)
+        {
+            var border = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#e3f2fd")),
+                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#90caf9")),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(15),
+                Margin = new Thickness(5),
+                MinWidth = 170
+            };
+
+            var stack = new StackPanel();
+
+            // Date
+            var dateText = new TextBlock
+            {
+                Text = forecastDay.Date ?? "",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1565c0")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            stack.Children.Add(dateText);
+
+            // Icon
+            if (forecastDay.Day?.Condition?.Icon != null)
+            {
+                string iconUrl = forecastDay.Day.Condition.Icon;
+                if (iconUrl.StartsWith("//"))
+                {
+                    iconUrl = "https:" + iconUrl;
+                }
+                var icon = new Image
+                {
+                    Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(iconUrl)),
+                    Width = 48,
+                    Height = 48,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 5)
+                };
+                stack.Children.Add(icon);
+            }
+
+            // Condition text
+            var conditionText = new TextBlock
+            {
+                Text = forecastDay.Day?.Condition?.Text ?? "",
+                FontSize = 12,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#424242")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            stack.Children.Add(conditionText);
+
+            // Temperature
+            var tempText = new TextBlock
+            {
+                Text = $"🌡️ {forecastDay.Day?.MinTempC:0}°C / {forecastDay.Day?.MaxTempC:0}°C",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#212529")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 5)
+            };
+            stack.Children.Add(tempText);
+
+            // Avg temp
+            var avgTempText = new TextBlock
+            {
+                Text = $"Средняя: {forecastDay.Day?.AvgTempC:0}°C",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6c757d")),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            stack.Children.Add(avgTempText);
+
+            // Humidity
+            var humidityText = new TextBlock
+            {
+                Text = $"💧 Влажность: {forecastDay.Day?.AvgHumidity}%",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#495057")),
+                Margin = new Thickness(0, 0, 0, 3)
+            };
+            stack.Children.Add(humidityText);
+
+            // Wind
+            var windText = new TextBlock
+            {
+                Text = $"💨 Ветер: {forecastDay.Day?.MaxWindKph} км/ч",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#495057")),
+                Margin = new Thickness(0, 0, 0, 3)
+            };
+            stack.Children.Add(windText);
+
+            // Precipitation
+            var precipText = new TextBlock
+            {
+                Text = $"🌧️ Осадки: {forecastDay.Day?.TotalPrecipMm} мм",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#495057")),
+                Margin = new Thickness(0, 0, 0, 3)
+            };
+            stack.Children.Add(precipText);
+
+            // Rain chance
+            var rainText = new TextBlock
+            {
+                Text = $"🌧 Дождь: {forecastDay.Day?.DailyChanceOfRain}%",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#495057")),
+                Margin = new Thickness(0, 0, 0, 3)
+            };
+            stack.Children.Add(rainText);
+
+            // Snow chance
+            var snowText = new TextBlock
+            {
+                Text = $"❄️ Снег: {forecastDay.Day?.DailyChanceOfSnow}%",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#495057")),
+                Margin = new Thickness(0, 0, 0, 3)
+            };
+            stack.Children.Add(snowText);
+
+            // UV index
+            var uvText = new TextBlock
+            {
+                Text = $"☀️ УФ: {forecastDay.Day?.UV}",
+                FontSize = 11,
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#495057")),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            stack.Children.Add(uvText);
+
+            // Astro info
+            if (forecastDay.Astro != null)
+            {
+                var astroHeader = new TextBlock
+                {
+                    Text = "─── Астрономия ───",
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#90caf9")),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 0, 0, 5)
+                };
+                stack.Children.Add(astroHeader);
+
+                var sunriseText = new TextBlock
+                {
+                    Text = $"🌅 {forecastDay.Astro.Sunrise}",
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6c757d"))
+                };
+                stack.Children.Add(sunriseText);
+
+                var sunsetText = new TextBlock
+                {
+                    Text = $"🌇 {forecastDay.Astro.Sunset}",
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6c757d"))
+                };
+                stack.Children.Add(sunsetText);
+            }
+
+            border.Child = stack;
+            return border;
         }
 
         private void ClearWeatherData()
@@ -92,7 +341,21 @@ namespace weather_app
             WindTextBlock.Text = "";
             VisibilityTextBlock.Text = "";
             UVTextBlock.Text = "";
+            CloudTextBlock.Text = "";
+            WindDirTextBlock.Text = "";
+            GustTextBlock.Text = "";
+            WindchillTextBlock.Text = "";
+            PrecipTextBlock.Text = "";
+            DewpointTextBlock.Text = "";
+            HeatindexTextBlock.Text = "";
+            SunriseTextBlock.Text = "--:--";
+            SunsetTextBlock.Text = "--:--";
+            MoonriseTextBlock.Text = "--:--";
+            MoonsetTextBlock.Text = "--:--";
+            MoonPhaseTextBlock.Text = "--";
+            MoonIllumTextBlock.Text = "0%";
             WeatherIcon.Source = null;
+            ForecastPanel.Children.Clear();
         }
 
         private void SearchButton_Click(object sender, RoutedEventArgs e)
@@ -101,6 +364,23 @@ namespace weather_app
             if (!string.IsNullOrEmpty(city))
             {
                 LoadWeather(city);
+            }
+        }
+
+        private void SaveCityButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_dbHelper != null && !string.IsNullOrEmpty(_currentCity))
+                {
+                    _dbHelper.SaveDefaultCity(_currentCity);
+                    MessageBox.Show($"Город \"{_currentCity}\" сохранен как избранный!", "Сохранено", MessageBoxButton.OK, MessageBoxImage.Information);
+                    StatusTextBlock.Text = $"Город \"{_currentCity}\" сохранен";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
