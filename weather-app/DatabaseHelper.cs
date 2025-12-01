@@ -53,7 +53,6 @@ namespace weather_app
             using var connection = new SQLiteConnection(_connectionString);
             connection.Open();
 
-            // Use INSERT OR REPLACE with a fixed ID for atomicity
             string upsertQuery = "INSERT OR REPLACE INTO Settings (Id, DefaultCity) VALUES (1, @city)";
             using var command = new SQLiteCommand(upsertQuery, connection);
             command.Parameters.AddWithValue("@city", city);

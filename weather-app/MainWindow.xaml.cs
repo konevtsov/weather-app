@@ -53,7 +53,7 @@ namespace weather_app
                 using (var client = new HttpClient())
                 {
                     string url = $"http://api.weatherapi.com/v1/forecast.json?key={ApiKey}&q={city}&days=3&lang=ru";
-
+                    
                     HttpResponseMessage response = await client.GetAsync(url);
                     response.EnsureSuccessStatusCode();
 
@@ -68,35 +68,30 @@ namespace weather_app
 
                     _currentCity = data.Location.Name ?? city;
 
-                    // Location info
+
                     CityTextBlock.Text = data.Location.Name ?? "";
                     CountryTextBlock.Text = data.Location.Country ?? "";
                     TimeTextBlock.Text = data.Location.LocalTime ?? "";
 
-                    // Current weather
                     TempTextBlock.Text = $"{data.Current.TempC:0}°C";
                     FeelsLikeTextBlock.Text = $"Ощущается как: {data.Current.FeelsLikeC:0}°C";
                     DescTextBlock.Text = data.Current.Condition?.Text ?? "";
 
-                    // Basic parameters
                     HumidityTextBlock.Text = $"{data.Current.Humidity}%";
                     PressureTextBlock.Text = $"{data.Current.PressureMb} hPa";
                     VisibilityTextBlock.Text = $"{data.Current.VisibilityKm} км";
                     CloudTextBlock.Text = $"{data.Current.Cloud}%";
 
-                    // Wind parameters
                     WindTextBlock.Text = $"{data.Current.WindKph} км/ч";
                     WindDirTextBlock.Text = $"{data.Current.WindDir ?? ""} {data.Current.WindDegree}°";
                     GustTextBlock.Text = $"{data.Current.GustKph} км/ч";
                     WindchillTextBlock.Text = $"{data.Current.WindchillC:0}°C";
 
-                    // Additional parameters
                     PrecipTextBlock.Text = $"{data.Current.PrecipMm} мм";
                     DewpointTextBlock.Text = $"{data.Current.DewpointC:0}°C";
                     HeatindexTextBlock.Text = $"{data.Current.HeatindexC:0}°C";
                     UVTextBlock.Text = data.Current.UV.ToString();
 
-                    // Weather icon
                     if (!string.IsNullOrEmpty(data.Current.Condition?.Icon))
                     {
                         string iconUrl = data.Current.Condition.Icon;
@@ -108,7 +103,6 @@ namespace weather_app
                             new Uri(iconUrl));
                     }
 
-                    // Astronomy data (from today's forecast)
                     if (data.Forecast?.ForecastDays != null && data.Forecast.ForecastDays.Count > 0)
                     {
                         var todayAstro = data.Forecast.ForecastDays[0].Astro;
@@ -118,11 +112,10 @@ namespace weather_app
                             SunsetTextBlock.Text = todayAstro.Sunset ?? "--:--";
                             MoonriseTextBlock.Text = todayAstro.Moonrise ?? "--:--";
                             MoonsetTextBlock.Text = todayAstro.Moonset ?? "--:--";
-                            MoonPhaseTextBlock.Text = todayAstro.MoonPhase ?? "--";
+                            MoonPhaseTextBlock.Text = TranslateMoonPhase(todayAstro.MoonPhase);
                             MoonIllumTextBlock.Text = $"{todayAstro.MoonIllumination}%";
                         }
 
-                        // 3-day forecast
                         UpdateForecastPanel(data.Forecast.ForecastDays);
                     }
 
@@ -167,7 +160,6 @@ namespace weather_app
 
             var stack = new StackPanel();
 
-            // Date
             var dateText = new TextBlock
             {
                 Text = forecastDay.Date ?? "",
@@ -179,7 +171,6 @@ namespace weather_app
             };
             stack.Children.Add(dateText);
 
-            // Icon
             if (forecastDay.Day?.Condition?.Icon != null)
             {
                 string iconUrl = forecastDay.Day.Condition.Icon;
@@ -198,7 +189,6 @@ namespace weather_app
                 stack.Children.Add(icon);
             }
 
-            // Condition text
             var conditionText = new TextBlock
             {
                 Text = forecastDay.Day?.Condition?.Text ?? "",
@@ -211,7 +201,6 @@ namespace weather_app
             };
             stack.Children.Add(conditionText);
 
-            // Temperature
             var tempText = new TextBlock
             {
                 Text = $"🌡️ {forecastDay.Day?.MinTempC:0}°C / {forecastDay.Day?.MaxTempC:0}°C",
@@ -223,7 +212,6 @@ namespace weather_app
             };
             stack.Children.Add(tempText);
 
-            // Avg temp
             var avgTempText = new TextBlock
             {
                 Text = $"Средняя: {forecastDay.Day?.AvgTempC:0}°C",
@@ -234,7 +222,6 @@ namespace weather_app
             };
             stack.Children.Add(avgTempText);
 
-            // Humidity
             var humidityText = new TextBlock
             {
                 Text = $"💧 Влажность: {forecastDay.Day?.AvgHumidity}%",
@@ -244,7 +231,6 @@ namespace weather_app
             };
             stack.Children.Add(humidityText);
 
-            // Wind
             var windText = new TextBlock
             {
                 Text = $"💨 Ветер: {forecastDay.Day?.MaxWindKph} км/ч",
@@ -254,7 +240,6 @@ namespace weather_app
             };
             stack.Children.Add(windText);
 
-            // Precipitation
             var precipText = new TextBlock
             {
                 Text = $"🌧️ Осадки: {forecastDay.Day?.TotalPrecipMm} мм",
@@ -264,7 +249,6 @@ namespace weather_app
             };
             stack.Children.Add(precipText);
 
-            // Rain chance
             var rainText = new TextBlock
             {
                 Text = $"🌧 Дождь: {forecastDay.Day?.DailyChanceOfRain}%",
@@ -274,7 +258,6 @@ namespace weather_app
             };
             stack.Children.Add(rainText);
 
-            // Snow chance
             var snowText = new TextBlock
             {
                 Text = $"❄️ Снег: {forecastDay.Day?.DailyChanceOfSnow}%",
@@ -284,7 +267,6 @@ namespace weather_app
             };
             stack.Children.Add(snowText);
 
-            // UV index
             var uvText = new TextBlock
             {
                 Text = $"☀️ УФ: {forecastDay.Day?.UV}",
@@ -294,12 +276,11 @@ namespace weather_app
             };
             stack.Children.Add(uvText);
 
-            // Astro info
             if (forecastDay.Astro != null)
             {
                 var astroHeader = new TextBlock
                 {
-                    Text = "─── Астрономия ───",
+                    Text = "─── Восход/Закат ───",
                     FontSize = 10,
                     Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#90caf9")),
                     HorizontalAlignment = HorizontalAlignment.Center,
@@ -356,6 +337,22 @@ namespace weather_app
             MoonIllumTextBlock.Text = "0%";
             WeatherIcon.Source = null;
             ForecastPanel.Children.Clear();
+        }
+
+        private string TranslateMoonPhase(string? moonPhase)
+        {
+            return moonPhase?.ToLower() switch
+            {
+                "new moon" => "Новолуние",
+                "waxing crescent" => "Растущий серп",
+                "first quarter" => "Первая четверть",
+                "waxing gibbous" => "Растущая луна",
+                "full moon" => "Полнолуние",
+                "waning gibbous" => "Убывающая луна",
+                "last quarter" => "Последняя четверть",
+                "waning crescent" => "Убывающий серп",
+                _ => moonPhase ?? "--"
+            };
         }
 
         private void SearchButton_Click(object sender, RoutedEventArgs e)

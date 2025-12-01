@@ -520,7 +520,6 @@
                 <TextBlock Text="📅 Прогноз на 3 дня" Style="{StaticResource SectionHeader}"/>
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,20">
                     <StackPanel x:Name="ForecastPanel" Orientation="Horizontal">
-                        <!-- Карточки прогноза будут добавлены программно -->
                     </StackPanel>
                 </ScrollViewer>
 
