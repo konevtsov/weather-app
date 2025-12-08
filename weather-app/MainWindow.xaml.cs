@@ -109,8 +109,12 @@ namespace weather_app
                             {
                                 iconUrl = "https:" + iconUrl;
                             }
-                            WeatherIcon.Source = new System.Windows.Media.Imaging.BitmapImage(
-                                new Uri(iconUrl));
+                            var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                            bitmap.BeginInit();
+                            bitmap.UriSource = new Uri(iconUrl);
+                            bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                            bitmap.EndInit();
+                            WeatherIcon.Source = bitmap;
                         }
 
                         if (data.Forecast?.ForecastDays != null && data.Forecast.ForecastDays.Count > 0)
@@ -198,9 +202,14 @@ namespace weather_app
                 {
                     iconUrl = "https:" + iconUrl;
                 }
+                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(iconUrl);
+                bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
                 var icon = new Image
                 {
-                    Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(iconUrl)),
+                    Source = bitmap,
                     Width = 48,
                     Height = 48,
                     HorizontalAlignment = HorizontalAlignment.Center,
