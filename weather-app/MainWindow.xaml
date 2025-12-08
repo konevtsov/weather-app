@@ -5,7 +5,8 @@
         WindowStartupLocation="CenterScreen"
         Background="White"
         ResizeMode="CanResizeWithGrip"
-        WindowStyle="SingleBorderWindow">
+        WindowStyle="SingleBorderWindow"
+        Loaded="Window_Loaded">
 
     <Window.Resources>
         <Style x:Key="CleanTextBox" TargetType="TextBox">

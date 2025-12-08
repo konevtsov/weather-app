@@ -38,17 +38,25 @@ namespace weather_app
             {
                 StatusTextBlock.Text = $"Ошибка БД: {ex.Message}";
             }
+        }
 
-            LoadWeather(_currentCity);
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Delay LoadWeather until UI is fully rendered and idle
+            Dispatcher.BeginInvoke(() => LoadWeather(_currentCity), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
 
         private async void LoadWeather(string city)
         {
             try
             {
-                StatusTextBlock.Text = "Загрузка...";
-                SearchButton.IsEnabled = false;
-                SaveCityButton.IsEnabled = false;
+                // Initial UI updates must also be on UI thread
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    StatusTextBlock.Text = "Загрузка...";
+                    SearchButton.IsEnabled = false;
+                    SaveCityButton.IsEnabled = false;
+                }, System.Windows.Threading.DispatcherPriority.Normal);
 
                 using (var client = new HttpClient())
                 {
@@ -68,69 +76,85 @@ namespace weather_app
 
                     _currentCity = data.Location.Name ?? city;
 
-
-                    CityTextBlock.Text = data.Location.Name ?? "";
-                    CountryTextBlock.Text = data.Location.Country ?? "";
-                    TimeTextBlock.Text = data.Location.LocalTime ?? "";
-
-                    TempTextBlock.Text = $"{data.Current.TempC:0}°C";
-                    FeelsLikeTextBlock.Text = $"Ощущается как: {data.Current.FeelsLikeC:0}°C";
-                    DescTextBlock.Text = data.Current.Condition?.Text ?? "";
-
-                    HumidityTextBlock.Text = $"{data.Current.Humidity}%";
-                    PressureTextBlock.Text = $"{data.Current.PressureMb} hPa";
-                    VisibilityTextBlock.Text = $"{data.Current.VisibilityKm} км";
-                    CloudTextBlock.Text = $"{data.Current.Cloud}%";
-
-                    WindTextBlock.Text = $"{data.Current.WindKph} км/ч";
-                    WindDirTextBlock.Text = $"{data.Current.WindDir ?? ""} {data.Current.WindDegree}°";
-                    GustTextBlock.Text = $"{data.Current.GustKph} км/ч";
-                    WindchillTextBlock.Text = $"{data.Current.WindchillC:0}°C";
-
-                    PrecipTextBlock.Text = $"{data.Current.PrecipMm} мм";
-                    DewpointTextBlock.Text = $"{data.Current.DewpointC:0}°C";
-                    HeatindexTextBlock.Text = $"{data.Current.HeatindexC:0}°C";
-                    UVTextBlock.Text = data.Current.UV.ToString();
-
-                    if (!string.IsNullOrEmpty(data.Current.Condition?.Icon))
+                    // Ensure all UI updates happen atomically on UI thread
+                    await Dispatcher.InvokeAsync(() =>
                     {
-                        string iconUrl = data.Current.Condition.Icon;
-                        if (iconUrl.StartsWith("//"))
-                        {
-                            iconUrl = "https:" + iconUrl;
-                        }
-                        WeatherIcon.Source = new System.Windows.Media.Imaging.BitmapImage(
-                            new Uri(iconUrl));
-                    }
+                        CityTextBlock.Text = data.Location.Name ?? "";
+                        CountryTextBlock.Text = data.Location.Country ?? "";
+                        TimeTextBlock.Text = data.Location.LocalTime ?? "";
 
-                    if (data.Forecast?.ForecastDays != null && data.Forecast.ForecastDays.Count > 0)
-                    {
-                        var todayAstro = data.Forecast.ForecastDays[0].Astro;
-                        if (todayAstro != null)
+                        TempTextBlock.Text = $"{data.Current.TempC:0}°C";
+                        FeelsLikeTextBlock.Text = $"Ощущается как: {data.Current.FeelsLikeC:0}°C";
+                        DescTextBlock.Text = data.Current.Condition?.Text ?? "";
+
+                        HumidityTextBlock.Text = $"{data.Current.Humidity}%";
+                        PressureTextBlock.Text = $"{data.Current.PressureMb} hPa";
+                        VisibilityTextBlock.Text = $"{data.Current.VisibilityKm} км";
+                        CloudTextBlock.Text = $"{data.Current.Cloud}%";
+
+                        WindTextBlock.Text = $"{data.Current.WindKph} км/ч";
+                        WindDirTextBlock.Text = $"{data.Current.WindDir ?? ""} {data.Current.WindDegree}°";
+                        GustTextBlock.Text = $"{data.Current.GustKph} км/ч";
+                        WindchillTextBlock.Text = $"{data.Current.WindchillC:0}°C";
+
+                        PrecipTextBlock.Text = $"{data.Current.PrecipMm} мм";
+                        DewpointTextBlock.Text = $"{data.Current.DewpointC:0}°C";
+                        HeatindexTextBlock.Text = $"{data.Current.HeatindexC:0}°C";
+                        UVTextBlock.Text = data.Current.UV.ToString();
+
+                        if (!string.IsNullOrEmpty(data.Current.Condition?.Icon))
                         {
-                            SunriseTextBlock.Text = todayAstro.Sunrise ?? "--:--";
-                            SunsetTextBlock.Text = todayAstro.Sunset ?? "--:--";
-                            MoonriseTextBlock.Text = todayAstro.Moonrise ?? "--:--";
-                            MoonsetTextBlock.Text = todayAstro.Moonset ?? "--:--";
-                            MoonPhaseTextBlock.Text = TranslateMoonPhase(todayAstro.MoonPhase);
-                            MoonIllumTextBlock.Text = $"{todayAstro.MoonIllumination}%";
+                            string iconUrl = data.Current.Condition.Icon;
+                            if (iconUrl.StartsWith("//"))
+                            {
+                                iconUrl = "https:" + iconUrl;
+                            }
+                            var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                            bitmap.BeginInit();
+                            bitmap.UriSource = new Uri(iconUrl);
+                            bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                            bitmap.EndInit();
+                            WeatherIcon.Source = bitmap;
                         }
 
-                        UpdateForecastPanel(data.Forecast.ForecastDays);
-                    }
+                        if (data.Forecast?.ForecastDays != null && data.Forecast.ForecastDays.Count > 0)
+                        {
+                            var todayAstro = data.Forecast.ForecastDays[0].Astro;
+                            if (todayAstro != null)
+                            {
+                                SunriseTextBlock.Text = todayAstro.Sunrise ?? "--:--";
+                                SunsetTextBlock.Text = todayAstro.Sunset ?? "--:--";
+                                MoonriseTextBlock.Text = todayAstro.Moonrise ?? "--:--";
+                                MoonsetTextBlock.Text = todayAstro.Moonset ?? "--:--";
+                                MoonPhaseTextBlock.Text = TranslateMoonPhase(todayAstro.MoonPhase);
+                                MoonIllumTextBlock.Text = $"{todayAstro.MoonIllumination}%";
+                            }
 
-                    StatusTextBlock.Text = $"Обновлено: {DateTime.Now:HH:mm}";
+                            UpdateForecastPanel(data.Forecast.ForecastDays);
+                        }
+
+                        StatusTextBlock.Text = $"Обновлено: {DateTime.Now:HH:mm}";
+                    }, System.Windows.Threading.DispatcherPriority.Render);
+                    
+                    // Force additional render pass to ensure updates are displayed
+                    await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);
                 }
             }
             catch (Exception ex)
             {
-                StatusTextBlock.Text = $"Ошибка: {ex.Message}";
-                ClearWeatherData();
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    StatusTextBlock.Text = $"Ошибка: {ex.Message}";
+                    ClearWeatherData();
+                }, System.Windows.Threading.DispatcherPriority.Normal);
             }
             finally
             {
-                SearchButton.IsEnabled = true;
-                SaveCityButton.IsEnabled = true;
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    SearchButton.IsEnabled = true;
+                    SaveCityButton.IsEnabled = true;
+                }, System.Windows.Threading.DispatcherPriority.Normal);
             }
         }
 
@@ -178,9 +202,14 @@ namespace weather_app
                 {
                     iconUrl = "https:" + iconUrl;
                 }
+                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(iconUrl);
+                bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
                 var icon = new Image
                 {
-                    Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(iconUrl)),
+                    Source = bitmap,
                     Width = 48,
                     Height = 48,
                     HorizontalAlignment = HorizontalAlignment.Center,
