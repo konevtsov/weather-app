@@ -50,9 +50,13 @@ namespace weather_app
         {
             try
             {
-                StatusTextBlock.Text = "Загрузка...";
-                SearchButton.IsEnabled = false;
-                SaveCityButton.IsEnabled = false;
+                // Initial UI updates must also be on UI thread
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    StatusTextBlock.Text = "Загрузка...";
+                    SearchButton.IsEnabled = false;
+                    SaveCityButton.IsEnabled = false;
+                }, System.Windows.Threading.DispatcherPriority.Normal);
 
                 using (var client = new HttpClient())
                 {
@@ -134,13 +138,19 @@ namespace weather_app
             }
             catch (Exception ex)
             {
-                StatusTextBlock.Text = $"Ошибка: {ex.Message}";
-                ClearWeatherData();
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    StatusTextBlock.Text = $"Ошибка: {ex.Message}";
+                    ClearWeatherData();
+                }, System.Windows.Threading.DispatcherPriority.Normal);
             }
             finally
             {
-                SearchButton.IsEnabled = true;
-                SaveCityButton.IsEnabled = true;
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    SearchButton.IsEnabled = true;
+                    SaveCityButton.IsEnabled = true;
+                }, System.Windows.Threading.DispatcherPriority.Normal);
             }
         }
 
