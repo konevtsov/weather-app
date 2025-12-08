@@ -43,7 +43,7 @@ namespace weather_app
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // Delay LoadWeather until UI is fully rendered and idle
-            Dispatcher.BeginInvoke(new Action(() => LoadWeather(_currentCity)), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+            Dispatcher.BeginInvoke(() => LoadWeather(_currentCity), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
 
         private async void LoadWeather(string city)
