@@ -124,8 +124,8 @@ namespace weather_app
 
                     StatusTextBlock.Text = $"Обновлено: {DateTime.Now:HH:mm}";
                     
-                    // Force UI to update and re-render
-                    this.UpdateLayout();
+                    // Force UI to process pending updates and re-render
+                    Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Render);
                 }
             }
             catch (Exception ex)
