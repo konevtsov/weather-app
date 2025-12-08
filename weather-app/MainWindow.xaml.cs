@@ -38,7 +38,10 @@ namespace weather_app
             {
                 StatusTextBlock.Text = $"Ошибка БД: {ex.Message}";
             }
+        }
 
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
             LoadWeather(_currentCity);
         }
 
