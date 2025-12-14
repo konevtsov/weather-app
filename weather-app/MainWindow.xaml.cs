@@ -54,83 +54,94 @@ namespace weather_app
                 {
                     string url = $"http://api.weatherapi.com/v1/forecast.json?key={ApiKey}&q={city}&days=3&lang=ru";
                     
-                    HttpResponseMessage response = await client.GetAsync(url);
+                    HttpResponseMessage response = await client.GetAsync(url).ConfigureAwait(true);
                     response.EnsureSuccessStatusCode();
 
-                    string json = await response.Content.ReadAsStringAsync();
+                    string json = await response.Content.ReadAsStringAsync().ConfigureAwait(true);
                     WeatherData? data = JsonSerializer.Deserialize<WeatherData>(json);
 
                     if (data == null || data.Location == null || data.Current == null)
                     {
-                        StatusTextBlock.Text = "Ошибка: данные не получены";
+                        await Dispatcher.InvokeAsync(() =>
+                        {
+                            StatusTextBlock.Text = "Ошибка: данные не получены";
+                        });
                         return;
                     }
 
                     _currentCity = data.Location.Name ?? city;
 
-
-                    CityTextBlock.Text = data.Location.Name ?? "";
-                    CountryTextBlock.Text = data.Location.Country ?? "";
-                    TimeTextBlock.Text = data.Location.LocalTime ?? "";
-
-                    TempTextBlock.Text = $"{data.Current.TempC:0}°C";
-                    FeelsLikeTextBlock.Text = $"Ощущается как: {data.Current.FeelsLikeC:0}°C";
-                    DescTextBlock.Text = data.Current.Condition?.Text ?? "";
-
-                    HumidityTextBlock.Text = $"{data.Current.Humidity}%";
-                    PressureTextBlock.Text = $"{data.Current.PressureMb} hPa";
-                    VisibilityTextBlock.Text = $"{data.Current.VisibilityKm} км";
-                    CloudTextBlock.Text = $"{data.Current.Cloud}%";
-
-                    WindTextBlock.Text = $"{data.Current.WindKph} км/ч";
-                    WindDirTextBlock.Text = $"{data.Current.WindDir ?? ""} {data.Current.WindDegree}°";
-                    GustTextBlock.Text = $"{data.Current.GustKph} км/ч";
-                    WindchillTextBlock.Text = $"{data.Current.WindchillC:0}°C";
-
-                    PrecipTextBlock.Text = $"{data.Current.PrecipMm} мм";
-                    DewpointTextBlock.Text = $"{data.Current.DewpointC:0}°C";
-                    HeatindexTextBlock.Text = $"{data.Current.HeatindexC:0}°C";
-                    UVTextBlock.Text = data.Current.UV.ToString();
-
-                    if (!string.IsNullOrEmpty(data.Current.Condition?.Icon))
+                    await Dispatcher.InvokeAsync(() =>
                     {
-                        string iconUrl = data.Current.Condition.Icon;
-                        if (iconUrl.StartsWith("//"))
-                        {
-                            iconUrl = "https:" + iconUrl;
-                        }
-                        WeatherIcon.Source = new System.Windows.Media.Imaging.BitmapImage(
-                            new Uri(iconUrl));
-                    }
+                        CityTextBlock.Text = data.Location.Name ?? "";
+                        CountryTextBlock.Text = data.Location.Country ?? "";
+                        TimeTextBlock.Text = data.Location.LocalTime ?? "";
 
-                    if (data.Forecast?.ForecastDays != null && data.Forecast.ForecastDays.Count > 0)
-                    {
-                        var todayAstro = data.Forecast.ForecastDays[0].Astro;
-                        if (todayAstro != null)
+                        TempTextBlock.Text = $"{data.Current.TempC:0}°C";
+                        FeelsLikeTextBlock.Text = $"Ощущается как: {data.Current.FeelsLikeC:0}°C";
+                        DescTextBlock.Text = data.Current.Condition?.Text ?? "";
+
+                        HumidityTextBlock.Text = $"{data.Current.Humidity}%";
+                        PressureTextBlock.Text = $"{data.Current.PressureMb} hPa";
+                        VisibilityTextBlock.Text = $"{data.Current.VisibilityKm} км";
+                        CloudTextBlock.Text = $"{data.Current.Cloud}%";
+
+                        WindTextBlock.Text = $"{data.Current.WindKph} км/ч";
+                        WindDirTextBlock.Text = $"{data.Current.WindDir ?? ""} {data.Current.WindDegree}°";
+                        GustTextBlock.Text = $"{data.Current.GustKph} км/ч";
+                        WindchillTextBlock.Text = $"{data.Current.WindchillC:0}°C";
+
+                        PrecipTextBlock.Text = $"{data.Current.PrecipMm} мм";
+                        DewpointTextBlock.Text = $"{data.Current.DewpointC:0}°C";
+                        HeatindexTextBlock.Text = $"{data.Current.HeatindexC:0}°C";
+                        UVTextBlock.Text = data.Current.UV.ToString();
+
+                        if (!string.IsNullOrEmpty(data.Current.Condition?.Icon))
                         {
-                            SunriseTextBlock.Text = todayAstro.Sunrise ?? "--:--";
-                            SunsetTextBlock.Text = todayAstro.Sunset ?? "--:--";
-                            MoonriseTextBlock.Text = todayAstro.Moonrise ?? "--:--";
-                            MoonsetTextBlock.Text = todayAstro.Moonset ?? "--:--";
-                            MoonPhaseTextBlock.Text = TranslateMoonPhase(todayAstro.MoonPhase);
-                            MoonIllumTextBlock.Text = $"{todayAstro.MoonIllumination}%";
+                            string iconUrl = data.Current.Condition.Icon;
+                            if (iconUrl.StartsWith("//"))
+                            {
+                                iconUrl = "https:" + iconUrl;
+                            }
+                            WeatherIcon.Source = new System.Windows.Media.Imaging.BitmapImage(
+                                new Uri(iconUrl));
                         }
 
-                        UpdateForecastPanel(data.Forecast.ForecastDays);
-                    }
+                        if (data.Forecast?.ForecastDays != null && data.Forecast.ForecastDays.Count > 0)
+                        {
+                            var todayAstro = data.Forecast.ForecastDays[0].Astro;
+                            if (todayAstro != null)
+                            {
+                                SunriseTextBlock.Text = todayAstro.Sunrise ?? "--:--";
+                                SunsetTextBlock.Text = todayAstro.Sunset ?? "--:--";
+                                MoonriseTextBlock.Text = todayAstro.Moonrise ?? "--:--";
+                                MoonsetTextBlock.Text = todayAstro.Moonset ?? "--:--";
+                                MoonPhaseTextBlock.Text = TranslateMoonPhase(todayAstro.MoonPhase);
+                                MoonIllumTextBlock.Text = $"{todayAstro.MoonIllumination}%";
+                            }
 
-                    StatusTextBlock.Text = $"Обновлено: {DateTime.Now:HH:mm}";
+                            UpdateForecastPanel(data.Forecast.ForecastDays);
+                        }
+
+                        StatusTextBlock.Text = $"Обновлено: {DateTime.Now:HH:mm}";
+                    });
                 }
             }
             catch (Exception ex)
             {
-                StatusTextBlock.Text = $"Ошибка: {ex.Message}";
-                ClearWeatherData();
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    StatusTextBlock.Text = $"Ошибка: {ex.Message}";
+                    ClearWeatherData();
+                });
             }
             finally
             {
-                SearchButton.IsEnabled = true;
-                SaveCityButton.IsEnabled = true;
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    SearchButton.IsEnabled = true;
+                    SaveCityButton.IsEnabled = true;
+                });
             }
         }
 
