@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 
 namespace weather_app
 {
@@ -40,7 +39,6 @@ namespace weather_app
             {
                 StatusTextBlock.Text = $"Ошибка БД: {ex.Message}";
             }
-
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -48,7 +46,7 @@ namespace weather_app
             LoadWeather(_currentCity);
         }
 
-        private void LoadWeather(string city)
+        private async void LoadWeather(string city)
         {
             try
             {
@@ -60,10 +58,10 @@ namespace weather_app
                 {
                     string url = $"http://api.weatherapi.com/v1/forecast.json?key={ApiKey}&q={city}&days=3&lang=ru";
 
-                    HttpResponseMessage response = client.GetAsync(url).GetAwaiter().GetResult();
+                    HttpResponseMessage response = await client.GetAsync(url);
                     response.EnsureSuccessStatusCode();
 
-                    string json = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                    string json = await response.Content.ReadAsStringAsync();
                     WeatherData? data = JsonSerializer.Deserialize<WeatherData>(json);
 
                     if (data == null || data.Location == null || data.Current == null)
